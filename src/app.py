@@ -5,9 +5,11 @@ import plotly.express as px
 import plotly.graph_objects as go
 import json
 from copy import deepcopy
-import sys
+import os
 
-sys.path.insert(0, '.') 
+# Determine the absolute path to the data file
+current_folder = os.path.dirname(__file__)
+data_path = os.path.join(current_folder, "..", "data", "share-of-individuals-using-the-internet.csv")
 
 # First some MPG Data Exploration
 @st.cache_data
@@ -15,7 +17,7 @@ def load_data(path):
     df = pd.read_csv(path)
     return df
 
-internet_df_raw = load_data(path=".\data\share-of-individuals-using-the-internet.csv")
+internet_df_raw = load_data(path=data_path)
 internet_df = deepcopy(internet_df_raw)
 
 with open(".\data\countries.geojson") as response:
