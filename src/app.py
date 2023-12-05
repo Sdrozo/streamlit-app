@@ -10,6 +10,7 @@ import os
 # Determine the absolute path to the data file
 current_folder = os.path.dirname(__file__)
 data_path = os.path.join(current_folder, "..", "data", "share-of-individuals-using-the-internet.csv")
+geojson_path = os.path.join(current_folder, "..", "data", "countries.geojson")
 
 # First some MPG Data Exploration
 @st.cache_data
@@ -20,7 +21,7 @@ def load_data(path):
 internet_df_raw = load_data(path=data_path)
 internet_df = deepcopy(internet_df_raw)
 
-with open(".\data\countries.geojson") as response:
+with open(geojson_path) as response:
     countries = json.load(response)
 
 #preset values for the two countries
