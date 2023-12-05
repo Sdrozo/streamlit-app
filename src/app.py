@@ -1,81 +1,101 @@
+# Streamlit live coding script
+import streamlit as st
 import pandas as pd
-
-# matplotlib
-import matplotlib as mpl
 import matplotlib.pyplot as plt
-import seaborn as sns
-#plotly
 import plotly.express as px
 import plotly.graph_objects as go
-
-import streamlit as st
-
-st.title("MPG")
-
-df = pd.read_csv("data/mpg.csv")
-
-# Basic set-up of the page:
-# First the checkbox to show the data frame
-if st.sidebar.checkbox('Show dataframe'):
-    st.header("dataframe")
-    st.dataframe(df.head())
-
-# Then the radio botton for the plot type
-show_plot = st.sidebar.radio(
-    label='Choose Plot type', options=['Matplotlib', 'Plotly'])
-
-st.header("Highway Fuel Efficiency")
-years = ["All"]+sorted(pd.unique(df['year']))
-year = st.sidebar.selectbox("choose a Year", years)   # Here the selection of the year.
-car_classes = ['All'] + sorted(pd.unique(df['class']))
-car_class = st.sidebar.selectbox("choose a Class", car_classes)  # and the selection of the class.
-
-show_means = st.sidebar.radio(
-    label='Show Class Means', options=['Yes', 'No'])
-
-st.subheader(f'Fuel efficiency vs. engine displacement for {year}')
+from urllib.request import urlopen
+import json
+from copy import deepcopy
 
 
-# With these functions we wrangle the data and plot it.
-def mpg_mpl(year, car_class, show_means):
-    fig, ax = plt.subplots()
-    if year == 'All':
-        group = df
-    else:
-        group = df[df['year'] == year]
-    if car_class != 'All':
-        st.text(f'plotting car class: {car_class}')
-        group = group[group['class'] == car_class]
-    group.plot('displ', 'hwy', marker='.', linestyle='', ms=12, alpha=0.5, ax=ax, legend=None)
-    if show_means == "Yes":
-        means = df.groupby('class').mean()
-        for cc in means.index:
-            ax.plot(means.loc[cc, 'displ'], means.loc[cc, 'hwy'], marker='.', linestyle='', ms=12, alpha=1, label=cc)
-        ax.legend(loc='upper right', bbox_to_anchor=(1.1, 1))
-    ax.set_xlim([1, 8])
-    ax.set_ylim([10, 50])
-    plt.close()
-    return fig
+# First some MPG Data Exploration
+@st.cache_data
+def load_data(path):
+    df = pd.read_csv(path)
+    return df
+
+internet_df_raw = load_data(path=".\data\share-of-individuals-using-the-internet.csv")
+internet_df = deepcopy(internet_df_raw)
+
+#preset values for the two countries
+Entity1 = 'Switzerland'
+Entity2 = 'United Kingdom'
+
+# Add title and header
+st.title("Internet Usage per Country")
+st.header("Map")
+
+# Setting up columns
+left_column, middle_column, right_column = st.columns([1, 1, 1])
+
+# Widgets: selectbox
+years = sorted(pd.unique(internet_df['Year']))
+year = left_column.selectbox("Choose a Year", years)
+
+reduced_df = internet_df[internet_df["Year"] == year]
+
+# Sample Choropleth mapbox using Plotly GO
+st.subheader(f"Individuals using the Internet (% of population) for the year {year}")
+
+#C:\Users\sebas\Documents\Constructor Academy\streamlit-app\data\countries.geojson
+
+with open(".\data\countries.geojson") as response:
+    countries = json.load(response)
+
+fig1 = px.choropleth(
+    reduced_df,
+    geojson=countries,
+    locations='Code',
+    featureidkey="properties.ISO_A3",  # Adjust based on your GeoJSON structure
+    color='Individuals using the Internet (% of population)',
+    color_continuous_scale='thermal',
+    labels={'Individuals using the Internet (% of population)': 'Internet Users (%)'},
+    hover_data=['Entity', 'Code', 'Individuals using the Internet (% of population)']
+)
+
+fig1.update_geos(projection_type="natural earth")
+fig1.update_layout(mapbox_style="carto-positron", mapbox_zoom=3, mapbox_center={"lat": 37.0902, "lon": -95.7129})
+
+st.plotly_chart(fig1)
+
+st.subheader('Internet Users Over Time Comparison')
 
 
-def mpg_plotly(year, car_class, show_means):
-    if year == 'All':
-        group = df
-    else:
-        group = df[df['year'] == year]
-    if car_class != 'All':
-        group = group[group['class'] == car_class]
-    fig = px.scatter(group, x='displ', y='hwy', opacity=0.5, range_x=[1, 8], range_y=[10, 50])
-    if show_means == "Yes":
-        means = df.groupby('class').mean().reset_index()
-        fig = px.scatter(means, x='displ', y='hwy', opacity=0.5, color='class', range_x=[1, 8], range_y=[10, 50])
-        fig.add_trace(go.Scatter(x=group['displ'], y=group['hwy'], mode='markers', name=f'{year}_{car_class}',
-                                 opacity=0.5, marker=dict(color="RoyalBlue")))
-    return fig
-  
+# Widgets: selectbox
+Entities = sorted(pd.unique(internet_df['Entity']))
+Entity1 = middle_column.selectbox("Choose the first country", Entities)
+Entity2 = right_column.selectbox("Choose the second country", Entities)
 
-if show_plot == 'Plotly':
-    st.plotly_chart(mpg_plotly(year, car_class, show_means))
-    
-else:
-    st.pyplot(mpg_mpl(year, car_class, show_means))
+reduced_df1 = internet_df[internet_df["Entity"] == Entity1]
+reduced_df2 = internet_df[internet_df["Entity"] == Entity2]
+
+# Create separate Scatter traces for each entity with hover text
+trace1 = go.Scatter(
+    x=reduced_df1['Year'],
+    y=reduced_df1['Individuals using the Internet (% of population)'],
+    name=Entity1,
+    mode='lines+markers',  # Show both lines and markers
+    text=[f'{Entity1}<br>Year: {year}<br>Internet Users (%): {percentage}' 
+          for year, percentage in zip(reduced_df1['Year'], reduced_df1['Individuals using the Internet (% of population)'])]
+)
+
+trace2 = go.Scatter(
+    x=reduced_df2['Year'],
+    y=reduced_df2['Individuals using the Internet (% of population)'],
+    name=Entity2,
+    mode='lines+markers',
+    text=[f'{Entity2}<br>Year: {year}<br>Internet Users (%): {percentage}' 
+          for year, percentage in zip(reduced_df2['Year'], reduced_df2['Individuals using the Internet (% of population)'])]
+)
+
+# Create the figure with the list of traces
+fig2 = go.Figure([trace1, trace2])
+
+st.plotly_chart(fig2)
+
+# Widgets: checkbox (you can replace st.xx with st.sidebar.xx)
+if st.checkbox("Show Dataframe"):
+    st.subheader("This is my dataset:")
+    st.dataframe(data=internet_df)
+    # st.table(data=mpg_df)
