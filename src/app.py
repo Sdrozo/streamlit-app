@@ -5,7 +5,9 @@ import plotly.express as px
 import plotly.graph_objects as go
 import json
 from copy import deepcopy
+import sys
 
+sys.path.insert(0, '.') 
 
 # First some MPG Data Exploration
 @st.cache_data
@@ -15,6 +17,9 @@ def load_data(path):
 
 internet_df_raw = load_data(path=".\data\share-of-individuals-using-the-internet.csv")
 internet_df = deepcopy(internet_df_raw)
+
+with open(".\data\countries.geojson") as response:
+    countries = json.load(response)
 
 #preset values for the two countries
 Entity1 = 'Switzerland'
@@ -38,8 +43,7 @@ st.subheader(f"Individuals using the Internet (% of population) for the year {ye
 
 #C:\Users\sebas\Documents\Constructor Academy\streamlit-app\data\countries.geojson
 
-with open(".\data\countries.geojson") as response:
-    countries = json.load(response)
+
 
 fig1 = px.choropleth(
     reduced_df,
@@ -85,6 +89,7 @@ trace2 = go.Scatter(
     mode='lines+markers',
     text=[f'{Entity2}<br>Year: {year}<br>Internet Users (%): {percentage}' 
           for year, percentage in zip(reduced_df2['Year'], reduced_df2['Individuals using the Internet (% of population)'])]
+
 )
 
 # Create the figure with the list of traces
@@ -96,4 +101,10 @@ st.plotly_chart(fig2)
 if st.checkbox("Show Dataframe"):
     st.subheader("This is my dataset:")
     st.dataframe(data=internet_df)
-    # st.table(data=mpg_df)
+
+
+
+
+
+
+
